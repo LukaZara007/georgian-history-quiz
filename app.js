@@ -6,14 +6,18 @@ const state = {
   score: 0,
   questions: [],
   wrongAnswers: [],
-  answered: false
+  answered: false,
+  mode: 'quiz' // 'quiz' or 'study'
 };
 
 // DOM ელემენტები
 const chaptersScreen = document.getElementById('chapters-screen');
 const quizScreen = document.getElementById('quiz-screen');
 const resultsScreen = document.getElementById('results-screen');
+const studyScreen = document.getElementById('study-screen');
 const chaptersList = document.getElementById('chapters-list');
+const chaptersHeading = document.getElementById('chapters-heading');
+const chaptersSubhead = document.getElementById('chapters-subhead');
 const chapterTitle = document.getElementById('chapter-title');
 const qCounter = document.getElementById('q-counter');
 const scoreEl = document.getElementById('score');
@@ -34,12 +38,35 @@ const retryBtn = document.getElementById('retry-btn');
 const homeBtn = document.getElementById('home-btn');
 const wrongAnswersDiv = document.getElementById('wrong-answers');
 const allChaptersBtn = document.getElementById('all-chapters-btn');
+const modeQuizBtn = document.getElementById('mode-quiz-btn');
+const modeStudyBtn = document.getElementById('mode-study-btn');
+const studyTitle = document.getElementById('study-title');
+const studyContent = document.getElementById('study-content');
+const studyBackBtn = document.getElementById('study-back-btn');
+const studyToQuizBtn = document.getElementById('study-to-quiz-btn');
 
 // ეკრანების გადართვა
 function showScreen(screen) {
-  [chaptersScreen, quizScreen, resultsScreen].forEach(s => s.classList.remove('active'));
+  [chaptersScreen, quizScreen, resultsScreen, studyScreen].forEach(s => s.classList.remove('active'));
   screen.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// რეჟიმის შეცვლა
+function setMode(mode) {
+  state.mode = mode;
+  modeQuizBtn.classList.toggle('active', mode === 'quiz');
+  modeStudyBtn.classList.toggle('active', mode === 'study');
+  if (mode === 'quiz') {
+    chaptersHeading.textContent = 'აირჩიე თავი';
+    chaptersSubhead.textContent = 'დააწკაპუნე თავზე ქვიზის დასაწყებად';
+    allChaptersBtn.style.display = '';
+  } else {
+    chaptersHeading.textContent = 'სასწავლო მასალა';
+    chaptersSubhead.textContent = 'დააწკაპუნე თავზე პასუხების სანახავად';
+    allChaptersBtn.style.display = 'none';
+  }
+  renderChapters();
 }
 
 // თავების სიის რენდერი
@@ -47,15 +74,51 @@ function renderChapters() {
   chaptersList.innerHTML = '';
   QUIZ_DATA.forEach(chapter => {
     const card = document.createElement('button');
-    card.className = 'chapter-card';
+    card.className = 'chapter-card' + (state.mode === 'study' ? ' study-mode' : '');
+    const meta = state.mode === 'quiz'
+      ? `${chapter.description} · ${chapter.questions.length} კითხვა`
+      : `${chapter.description} · მასალის ნახვა`;
     card.innerHTML = `
       <div class="chapter-number">${chapter.id}</div>
       <div class="chapter-title">${chapter.title}</div>
-      <div class="chapter-meta">${chapter.description} · ${chapter.questions.length} კითხვა</div>
+      <div class="chapter-meta">${meta}</div>
     `;
-    card.addEventListener('click', () => startChapter(chapter));
+    card.addEventListener('click', () => {
+      if (state.mode === 'quiz') {
+        startChapter(chapter);
+      } else {
+        showStudy(chapter.id);
+      }
+    });
     chaptersList.appendChild(card);
   });
+}
+
+// სასწავლო მასალის ჩვენება
+function showStudy(chapterId) {
+  const data = STUDY_DATA[chapterId];
+  if (!data) return;
+
+  state.currentStudyChapter = chapterId;
+  studyTitle.textContent = `📖 თავი ${chapterId}: ${data.title}`;
+  studyContent.innerHTML = '';
+
+  data.sections.forEach(section => {
+    const div = document.createElement('div');
+    div.className = 'study-section';
+    const ul = document.createElement('ul');
+    section.facts.forEach(fact => {
+      const li = document.createElement('li');
+      // **bold** მარკდაუნი HTML-ად
+      li.innerHTML = fact.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      ul.appendChild(li);
+    });
+    div.innerHTML = `<h3>${section.heading}</h3>`;
+    div.appendChild(ul);
+    studyContent.appendChild(div);
+  });
+
+  showScreen(studyScreen);
 }
 
 // Fisher-Yates არევა
@@ -250,6 +313,13 @@ retryBtn.addEventListener('click', () => {
 });
 homeBtn.addEventListener('click', () => showScreen(chaptersScreen));
 allChaptersBtn.addEventListener('click', startAllChapters);
+modeQuizBtn.addEventListener('click', () => setMode('quiz'));
+modeStudyBtn.addEventListener('click', () => setMode('study'));
+studyBackBtn.addEventListener('click', () => showScreen(chaptersScreen));
+studyToQuizBtn.addEventListener('click', () => {
+  const chapter = QUIZ_DATA.find(c => c.id === state.currentStudyChapter);
+  if (chapter) startChapter(chapter);
+});
 
 // კლავიატურის მართვა
 document.addEventListener('keydown', (e) => {

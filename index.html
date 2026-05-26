@@ -16,10 +16,28 @@
   <main id="main">
     <!-- Chapter selection screen -->
     <section id="chapters-screen" class="screen active">
-      <h2>აირჩიე თავი</h2>
+      <div class="mode-toggle">
+        <button id="mode-quiz-btn" class="mode-btn active" data-mode="quiz">✏️ ქვიზის რეჟიმი</button>
+        <button id="mode-study-btn" class="mode-btn" data-mode="study">📖 პასუხების ნახვა</button>
+      </div>
+      <h2 id="chapters-heading">აირჩიე თავი</h2>
+      <p id="chapters-subhead" class="chapters-subhead">დააწკაპუნე თავზე ქვიზის დასაწყებად</p>
       <div id="chapters-list" class="chapters-grid"></div>
       <div class="actions" style="margin-top:24px;">
         <button id="all-chapters-btn" class="btn btn-primary">🎯 ყველა თავი ერთად (შერეული)</button>
+      </div>
+    </section>
+
+    <!-- Study screen -->
+    <section id="study-screen" class="screen">
+      <div class="quiz-header">
+        <button id="study-back-btn" class="btn btn-ghost">← უკან</button>
+        <h2 id="study-title"></h2>
+        <div></div>
+      </div>
+      <div id="study-content" class="study-content"></div>
+      <div class="actions" style="margin-top:24px; text-align:center;">
+        <button id="study-to-quiz-btn" class="btn btn-primary">✏️ ამ თავის ქვიზის დაწყება →</button>
       </div>
     </section>
 
@@ -78,6 +96,7 @@
 </div>
 
 <script src="quiz-data.js"></script>
+<script src="study-data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
