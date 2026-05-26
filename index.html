@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ისტორიის გამოცდის ქვიზი</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1>📜 ისტორიის გამოცდის ქვიზი</h1>
+    <p class="subtitle">აირჩიე თავი და დაიწყე ტესტი</p>
+  </header>
+
+  <main id="main">
+    <!-- Chapter selection screen -->
+    <section id="chapters-screen" class="screen active">
+      <h2>აირჩიე თავი</h2>
+      <div id="chapters-list" class="chapters-grid"></div>
+      <div class="actions" style="margin-top:24px;">
+        <button id="all-chapters-btn" class="btn btn-primary">🎯 ყველა თავი ერთად (შერეული)</button>
+      </div>
+    </section>
+
+    <!-- Quiz screen -->
+    <section id="quiz-screen" class="screen">
+      <div class="quiz-header">
+        <button id="back-btn" class="btn btn-ghost">← უკან</button>
+        <h2 id="chapter-title"></h2>
+        <div class="progress">
+          <span id="q-counter">1 / 10</span>
+          <span class="score">ქულა: <span id="score">0</span></span>
+        </div>
+      </div>
+
+      <div class="progress-bar">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+
+      <div id="question-box" class="question-box">
+        <p id="question-text" class="question-text"></p>
+        <div id="answers" class="answers"></div>
+      </div>
+
+      <div id="feedback" class="feedback hidden">
+        <div id="feedback-icon" class="feedback-icon"></div>
+        <p id="feedback-text" class="feedback-text"></p>
+        <p id="feedback-explanation" class="feedback-explanation"></p>
+        <button id="next-btn" class="btn btn-primary">შემდეგი კითხვა →</button>
+      </div>
+    </section>
+
+    <!-- Results screen -->
+    <section id="results-screen" class="screen">
+      <div class="results-card">
+        <h2>ტესტი დასრულდა! 🎉</h2>
+        <div class="result-circle">
+          <span id="final-score">0</span>
+          <span class="result-total">/ <span id="final-total">10</span></span>
+        </div>
+        <p id="result-message" class="result-message"></p>
+        <p id="result-percentage" class="result-percentage"></p>
+
+        <div class="results-actions">
+          <button id="retry-btn" class="btn btn-primary">🔁 ხელახლა</button>
+          <button id="home-btn" class="btn btn-secondary">🏠 თავების სია</button>
+        </div>
+
+        <div id="wrong-answers" class="wrong-answers"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>შექმნილია სასწავლო მიზნებისთვის</small>
+  </footer>
+</div>
+
+<script src="quiz-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
