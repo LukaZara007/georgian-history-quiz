@@ -1,4 +1,4 @@
-// ისტორიის ქვიზის აპლიკაცია
+// ისტორიის ქვიზის აპლიკაცია (free-text)
 
 const state = {
   currentChapter: null,
@@ -7,7 +7,8 @@ const state = {
   questions: [],
   wrongAnswers: [],
   answered: false,
-  mode: 'quiz' // 'quiz' or 'study'
+  mode: 'quiz', // 'quiz' or 'study'
+  currentStudyChapter: null
 };
 
 // DOM ელემენტები
@@ -96,8 +97,28 @@ function renderChapters() {
 
 // სასწავლო მასალის ჩვენება
 function showStudy(chapterId) {
-  const data = STUDY_DATA[chapterId];
-  if (!data) return;
+  const data = typeof STUDY_DATA !== 'undefined' ? STUDY_DATA[chapterId] : null;
+  if (!data) {
+    // Fallback: build study material from quiz data
+    const chapter = QUIZ_DATA.find(c => c.id === chapterId);
+    if (!chapter) return;
+    state.currentStudyChapter = chapterId;
+    studyTitle.textContent = `📖 თავი ${chapterId}: ${chapter.title}`;
+    studyContent.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'study-section';
+    div.innerHTML = `<h3>${chapter.title}</h3>`;
+    const ul = document.createElement('ul');
+    chapter.questions.forEach(q => {
+      const li = document.createElement('li');
+      li.innerHTML = `<strong>${q.q}</strong><br>➜ ${q.answer}<br><span style="color:#475569; font-size:0.9rem;">${q.explanation}</span>`;
+      ul.appendChild(li);
+    });
+    div.appendChild(ul);
+    studyContent.appendChild(div);
+    showScreen(studyScreen);
+    return;
+  }
 
   state.currentStudyChapter = chapterId;
   studyTitle.textContent = `📖 თავი ${chapterId}: ${data.title}`;
@@ -109,7 +130,6 @@ function showStudy(chapterId) {
     const ul = document.createElement('ul');
     section.facts.forEach(fact => {
       const li = document.createElement('li');
-      // **bold** მარკდაუნი HTML-ად
       li.innerHTML = fact.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       ul.appendChild(li);
     });
@@ -162,6 +182,35 @@ function startAllChapters() {
   renderQuestion();
 }
 
+// ტექსტის ნორმალიზაცია — ლეთინი ქვედარეგისტრში, პუნქტუაცია მოშორებული, ფართები ერთად
+function normalize(s) {
+  if (!s) return '';
+  return s
+    .toLowerCase()
+    .replace(/[.,!?;:"„""«»() –—\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// პასუხის შემოწმება — ნებისმიერი accept-დან ერთი დამთხვევა საკმარისია
+function isAnswerCorrect(userInput, question) {
+  const userNorm = normalize(userInput);
+  if (!userNorm) return false;
+  const candidates = question.accept && question.accept.length
+    ? question.accept
+    : [question.answer];
+  for (const cand of candidates) {
+    const candNorm = normalize(cand);
+    if (!candNorm) continue;
+    if (userNorm === candNorm) return true;
+    // მომხმარებლის შეყვანა შეიცავს კანდიდატს (გრძელი პასუხებისთვის)
+    if (userNorm.includes(candNorm)) return true;
+    // ან კანდიდატი შეიცავს მომხმარებლის შეყვანას (მოკლე ფორმისთვის)
+    if (candNorm.includes(userNorm) && userNorm.length >= 3) return true;
+  }
+  return false;
+}
+
 // კითხვის რენდერი
 function renderQuestion() {
   state.answered = false;
@@ -175,59 +224,85 @@ function renderQuestion() {
   questionText.textContent = q.q;
   answersEl.innerHTML = '';
 
-  // შერეული პასუხები — შევინარჩუნოთ რომელია სწორი
-  const indexed = q.options.map((opt, i) => ({ opt, isCorrect: i === q.correct }));
-  const shuffled = shuffle(indexed);
+  // შემქმნა ტექსტური შესაყვანი + სუბმიტ ღილაკი
+  const inputWrap = document.createElement('div');
+  inputWrap.className = 'input-wrap';
 
-  const letters = ['ა', 'ბ', 'გ', 'დ'];
-  shuffled.forEach((item, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'answer-btn';
-    btn.innerHTML = `<span class="answer-letter">${letters[i]}</span>${item.opt}`;
-    btn.addEventListener('click', () => selectAnswer(btn, item.isCorrect, q));
-    answersEl.appendChild(btn);
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'answer-input';
+  input.placeholder = 'შენი პასუხი...';
+  input.autocomplete = 'off';
+  input.autocapitalize = 'off';
+  input.spellcheck = false;
+  input.id = 'answer-input';
+
+  const submitBtn = document.createElement('button');
+  submitBtn.className = 'btn btn-primary submit-btn';
+  submitBtn.id = 'submit-btn';
+  submitBtn.textContent = 'შემოწმება';
+
+  const hint = document.createElement('div');
+  hint.className = 'input-hint';
+  hint.textContent = '↵ Enter — შემოწმება';
+
+  inputWrap.appendChild(input);
+  inputWrap.appendChild(submitBtn);
+  answersEl.appendChild(inputWrap);
+  answersEl.appendChild(hint);
+
+  const submit = () => {
+    if (state.answered) return;
+    const value = input.value;
+    if (!value.trim()) {
+      input.focus();
+      input.classList.add('shake');
+      setTimeout(() => input.classList.remove('shake'), 400);
+      return;
+    }
+    handleSubmit(value, q, input, submitBtn);
+  };
+
+  submitBtn.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    }
   });
 
   feedbackEl.classList.add('hidden');
+
+  // ფოკუსი შემოყვანის ველზე
+  setTimeout(() => input.focus(), 50);
 }
 
-// პასუხის არჩევა
-function selectAnswer(btn, isCorrect, q) {
-  if (state.answered) return;
+// პასუხის გადამოწმება
+function handleSubmit(value, q, input, submitBtn) {
   state.answered = true;
+  input.disabled = true;
+  submitBtn.disabled = true;
 
-  const allButtons = answersEl.querySelectorAll('.answer-btn');
-
-  if (isCorrect) {
-    btn.classList.add('correct');
+  const correct = isAnswerCorrect(value, q);
+  if (correct) {
+    input.classList.add('correct');
     state.score++;
     scoreEl.textContent = state.score;
-    showFeedback(true, q);
+    showFeedback(true, q, value);
   } else {
-    btn.classList.add('incorrect');
-    // აღვნიშნოთ სწორი პასუხი
-    allButtons.forEach(b => {
-      const text = b.textContent.trim();
-      // შევადაროთ წერტილოვნად ტექსტი სწორ პასუხს
-      if (text.endsWith(q.options[q.correct])) {
-        b.classList.add('correct');
-      }
-    });
+    input.classList.add('incorrect');
     state.wrongAnswers.push({
       question: q.q,
-      yourAnswer: btn.textContent.replace(/^[აბგდ]/, '').trim(),
-      correctAnswer: q.options[q.correct],
+      yourAnswer: value,
+      correctAnswer: q.answer,
       explanation: q.explanation
     });
-    showFeedback(false, q);
+    showFeedback(false, q, value);
   }
-
-  // ყველა ღილაკის გათიშვა
-  allButtons.forEach(b => b.disabled = true);
 }
 
 // უკუკავშირის ჩვენება
-function showFeedback(isCorrect, q) {
+function showFeedback(isCorrect, q, userValue) {
   feedbackEl.classList.remove('hidden', 'correct', 'incorrect');
   feedbackEl.classList.add(isCorrect ? 'correct' : 'incorrect');
 
@@ -236,13 +311,15 @@ function showFeedback(isCorrect, q) {
     feedbackText.textContent = 'სწორი პასუხია!';
   } else {
     feedbackIcon.textContent = '❌';
-    feedbackText.textContent = `არასწორი პასუხია. სწორი იყო: ${q.options[q.correct]}`;
+    feedbackText.innerHTML = `არასწორი პასუხია.<br>სწორი იყო: <strong>${q.answer}</strong>`;
   }
   feedbackExplanation.textContent = q.explanation;
 
-  // ბოლო კითხვაზე ღილაკის ტექსტის შეცვლა
   const isLast = state.currentQuestion === state.questions.length - 1;
   nextBtn.textContent = isLast ? 'შედეგების ნახვა →' : 'შემდეგი კითხვა →';
+
+  // ფოკუსი შემდეგი ღილაკზე — Enter-ით გადასვლა
+  setTimeout(() => nextBtn.focus(), 50);
 }
 
 // შემდეგ კითხვაზე გადასვლა
@@ -278,7 +355,6 @@ function showResults() {
   }
   resultMessage.textContent = message;
 
-  // არასწორი პასუხების ჩვენება
   if (state.wrongAnswers.length > 0) {
     wrongAnswersDiv.innerHTML = '<h3>📝 არასწორი პასუხები:</h3>';
     state.wrongAnswers.forEach(w => {
@@ -286,7 +362,7 @@ function showResults() {
       item.className = 'wrong-item';
       item.innerHTML = `
         <div class="wrong-q">${w.question}</div>
-        <div class="wrong-a">შენი პასუხი: ${w.yourAnswer}</div>
+        <div class="wrong-a">შენი პასუხი: ${w.yourAnswer || '(ცარიელი)'}</div>
         <div class="correct-a">სწორი პასუხი: ${w.correctAnswer}</div>
         <div style="margin-top:8px; font-size:0.9rem; color:#475569;">${w.explanation}</div>
       `;
@@ -321,16 +397,14 @@ studyToQuizBtn.addEventListener('click', () => {
   if (chapter) startChapter(chapter);
 });
 
-// კლავიატურის მართვა
+// კლავიატურის მართვა — Enter შემდეგი კითხვისთვის
 document.addEventListener('keydown', (e) => {
-  if (quizScreen.classList.contains('active')) {
-    if (state.answered && (e.key === 'Enter' || e.key === ' ')) {
+  if (quizScreen.classList.contains('active') && state.answered) {
+    if (e.key === 'Enter') {
+      // თუ ფოკუსი არ არის input-ზე
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
       e.preventDefault();
       nextQuestion();
-    } else if (!state.answered && ['1', '2', '3', '4'].includes(e.key)) {
-      const buttons = answersEl.querySelectorAll('.answer-btn');
-      const index = parseInt(e.key) - 1;
-      if (buttons[index]) buttons[index].click();
     }
   }
 });
