@@ -19,6 +19,7 @@
       <div class="mode-toggle">
         <button id="mode-quiz-btn" class="mode-btn active" data-mode="quiz">✏️ ქვიზის რეჟიმი</button>
         <button id="mode-study-btn" class="mode-btn" data-mode="study">📖 პასუხების ნახვა</button>
+        <button id="mode-ask-btn" class="mode-btn" data-mode="ask">❓ კითხვა მასალაზე</button>
       </div>
       <h2 id="chapters-heading">აირჩიე თავი</h2>
       <p id="chapters-subhead" class="chapters-subhead">დააწკაპუნე თავზე ქვიზის დასაწყებად</p>
@@ -26,6 +27,21 @@
       <div class="actions" style="margin-top:24px;">
         <button id="all-chapters-btn" class="btn btn-primary">🎯 ყველა თავი ერთად (შერეული)</button>
       </div>
+    </section>
+
+    <!-- Ask screen -->
+    <section id="ask-screen" class="screen">
+      <div class="quiz-header">
+        <button id="ask-back-btn" class="btn btn-ghost">← უკან</button>
+        <h2>❓ კითხვა მასალაზე</h2>
+        <div></div>
+      </div>
+      <p class="ask-hint">დასვი კითხვა — ვიპოვი შესაბამის ფრაგმენტებს იმპორტირებული მასალიდან.</p>
+      <div class="ask-input-wrap">
+        <input id="ask-input" type="text" class="answer-input" placeholder="მაგ: ვინ იყო ფარნავაზი? · როდის დაარსდა რომი?" autocomplete="off" spellcheck="false">
+        <button id="ask-submit-btn" class="btn btn-primary submit-btn">ძიება</button>
+      </div>
+      <div id="ask-results" class="ask-results"></div>
     </section>
 
     <!-- Study screen -->
@@ -97,6 +113,7 @@
 
 <script src="quiz-data.js"></script>
 <script src="study-data.js"></script>
+<script src="source-data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -45,10 +45,16 @@ const studyTitle = document.getElementById('study-title');
 const studyContent = document.getElementById('study-content');
 const studyBackBtn = document.getElementById('study-back-btn');
 const studyToQuizBtn = document.getElementById('study-to-quiz-btn');
+const askScreen = document.getElementById('ask-screen');
+const modeAskBtn = document.getElementById('mode-ask-btn');
+const askBackBtn = document.getElementById('ask-back-btn');
+const askInput = document.getElementById('ask-input');
+const askSubmitBtn = document.getElementById('ask-submit-btn');
+const askResults = document.getElementById('ask-results');
 
 // ეკრანების გადართვა
 function showScreen(screen) {
-  [chaptersScreen, quizScreen, resultsScreen, studyScreen].forEach(s => s.classList.remove('active'));
+  [chaptersScreen, quizScreen, resultsScreen, studyScreen, askScreen].forEach(s => s.classList.remove('active'));
   screen.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -58,6 +64,13 @@ function setMode(mode) {
   state.mode = mode;
   modeQuizBtn.classList.toggle('active', mode === 'quiz');
   modeStudyBtn.classList.toggle('active', mode === 'study');
+  modeAskBtn.classList.toggle('active', mode === 'ask');
+  if (mode === 'ask') {
+    showScreen(askScreen);
+    askResults.innerHTML = '<p class="ask-empty">დასვი კითხვა და დააწერე „ძიება" ღილაკზე ან დააჭირე Enter.</p>';
+    setTimeout(() => askInput.focus(), 50);
+    return;
+  }
   if (mode === 'quiz') {
     chaptersHeading.textContent = 'აირჩიე თავი';
     chaptersSubhead.textContent = 'დააწკაპუნე თავზე ქვიზის დასაწყებად';
@@ -67,6 +80,7 @@ function setMode(mode) {
     chaptersSubhead.textContent = 'დააწკაპუნე თავზე პასუხების სანახავად';
     allChaptersBtn.style.display = 'none';
   }
+  showScreen(chaptersScreen);
   renderChapters();
 }
 
@@ -192,6 +206,45 @@ function normalize(s) {
     .trim();
 }
 
+// Levenshtein-ის მანძილი ორ სტრიქონს შორის
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const m = a.length, n = b.length;
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+// ფაზი მსგავსება — დასაშვებია ~25% შეცდომა, მინ. 1 სიმბოლო
+// რიცხვები (წლები) — ზუსტი დამთხვევა, ფაზი არ მუშაობს
+function isNumericish(s) {
+  return /^[0-9ivxIVX\-– ]+$/.test(s) && /[0-9]/.test(s);
+}
+
+function fuzzyMatch(userNorm, candNorm) {
+  if (!userNorm || !candNorm) return false;
+  if (userNorm === candNorm) return true;
+  // რიცხვებზე ფაზი არ მიგვაჩნია გონივრულად — 754 ≠ 753
+  if (isNumericish(candNorm) || isNumericish(userNorm)) return false;
+  const maxLen = Math.max(userNorm.length, candNorm.length);
+  const minLen = Math.min(userNorm.length, candNorm.length);
+  if (minLen < 2) return false;
+  const tolerance = Math.max(1, Math.floor(candNorm.length * 0.25));
+  if (maxLen - minLen > tolerance + 1) return false;
+  return levenshtein(userNorm, candNorm) <= tolerance;
+}
+
 // პასუხის შემოწმება — ნებისმიერი accept-დან ერთი დამთხვევა საკმარისია
 function isAnswerCorrect(userInput, question) {
   const userNorm = normalize(userInput);
@@ -202,11 +255,23 @@ function isAnswerCorrect(userInput, question) {
   for (const cand of candidates) {
     const candNorm = normalize(cand);
     if (!candNorm) continue;
+    // ზუსტი დამთხვევა
     if (userNorm === candNorm) return true;
-    // მომხმარებლის შეყვანა შეიცავს კანდიდატს (გრძელი პასუხებისთვის)
-    if (userNorm.includes(candNorm)) return true;
-    // ან კანდიდატი შეიცავს მომხმარებლის შეყვანას (მოკლე ფორმისთვის)
+    // შემცველობა (ერთი მეორეში)
+    if (userNorm.includes(candNorm) && candNorm.length >= 3) return true;
     if (candNorm.includes(userNorm) && userNorm.length >= 3) return true;
+    // ფაზი დამთხვევა — წვრილი შეცდომებიც დასაშვებია
+    if (fuzzyMatch(userNorm, candNorm)) return true;
+    // სიტყვა-სიტყვით ფაზი დამთხვევა გრძელი პასუხებისთვის
+    const candWords = candNorm.split(' ').filter(w => w.length >= 3);
+    const userWords = userNorm.split(' ').filter(w => w.length >= 2);
+    if (candWords.length >= 2 && userWords.length >= 1) {
+      let matched = 0;
+      for (const cw of candWords) {
+        if (userWords.some(uw => fuzzyMatch(uw, cw))) matched++;
+      }
+      if (matched / candWords.length >= 0.75) return true;
+    }
   }
   return false;
 }
@@ -375,6 +440,89 @@ function showResults() {
   showScreen(resultsScreen);
 }
 
+// კითხვა მასალაზე — სიტყვების მიხედვით ძიება იმპორტირებულ ფრაგმენტებში
+function extractKeywords(query) {
+  if (!query) return [];
+  const norm = normalize(query);
+  return norm.split(' ')
+    .filter(w => w.length >= 3 && !STOP_WORDS.has(w));
+}
+
+function scorePassage(passage, keywords) {
+  if (!keywords.length) return 0;
+  const norm = normalize(passage.text);
+  let score = 0;
+  for (const kw of keywords) {
+    if (norm.includes(kw)) {
+      // სიგრძის მიხედვით აწონა — გრძელი სიტყვა უფრო მნიშვნელოვანია
+      score += kw.length;
+      continue;
+    }
+    // ფაზი დამთხვევა სიტყვა-სიტყვით (typo-tolerant)
+    const words = norm.split(' ');
+    if (words.some(w => fuzzyMatch(w, kw))) {
+      score += Math.max(2, Math.floor(kw.length * 0.6));
+    }
+  }
+  return score;
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function highlightKeywords(text, keywords) {
+  if (!keywords.length) return escapeHtml(text);
+  let html = escapeHtml(text);
+  // ვცადოთ თითო საკვანძო სიტყვა — case-insensitive (ქართულშიც ფუნქციონირებს)
+  for (const kw of keywords) {
+    if (kw.length < 3) continue;
+    try {
+      const re = new RegExp('(' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      html = html.replace(re, '<mark>$1</mark>');
+    } catch (e) {}
+  }
+  return html;
+}
+
+function runSearch(query) {
+  const trimmed = (query || '').trim();
+  if (!trimmed) {
+    askResults.innerHTML = '<p class="ask-empty">დასვი კითხვა და დააწერე „ძიება" ღილაკზე ან დააჭირე Enter.</p>';
+    return;
+  }
+  const keywords = extractKeywords(trimmed);
+  if (!keywords.length) {
+    askResults.innerHTML = '<p class="ask-empty">ვერ ვიპოვე საკვანძო სიტყვები. სცადე უფრო კონკრეტული კითხვა.</p>';
+    return;
+  }
+  const scored = SOURCE_PASSAGES
+    .map(p => ({ p, score: scorePassage(p, keywords) }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  if (!scored.length) {
+    askResults.innerHTML = `<p class="ask-empty">😔 ვერაფერი ვიპოვე საკვანძო სიტყვებზე: <strong>${escapeHtml(keywords.join(', '))}</strong></p>`;
+    return;
+  }
+
+  askResults.innerHTML = '';
+  scored.forEach(({ p, score }, idx) => {
+    const div = document.createElement('div');
+    div.className = 'ask-result';
+    const chapterTitle = CHAPTER_TITLES[p.chapter] || `თავი ${p.chapter}`;
+    div.innerHTML = `
+      <div class="ask-result-meta">
+        <span>📖 თავი ${p.chapter} — ${chapterTitle}</span>
+        <span class="ask-result-score">${idx === 0 ? '🎯 საუკეთესო' : `#${idx + 1}`}</span>
+      </div>
+      <div class="ask-result-text">${highlightKeywords(p.text, keywords)}</div>
+    `;
+    askResults.appendChild(div);
+  });
+}
+
 // ღილაკების ლისტენერები
 nextBtn.addEventListener('click', nextQuestion);
 backBtn.addEventListener('click', () => showScreen(chaptersScreen));
@@ -391,6 +539,15 @@ homeBtn.addEventListener('click', () => showScreen(chaptersScreen));
 allChaptersBtn.addEventListener('click', startAllChapters);
 modeQuizBtn.addEventListener('click', () => setMode('quiz'));
 modeStudyBtn.addEventListener('click', () => setMode('study'));
+modeAskBtn.addEventListener('click', () => setMode('ask'));
+askBackBtn.addEventListener('click', () => { setMode('quiz'); });
+askSubmitBtn.addEventListener('click', () => runSearch(askInput.value));
+askInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    runSearch(askInput.value);
+  }
+});
 studyBackBtn.addEventListener('click', () => showScreen(chaptersScreen));
 studyToQuizBtn.addEventListener('click', () => {
   const chapter = QUIZ_DATA.find(c => c.id === state.currentStudyChapter);

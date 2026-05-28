@@ -121,11 +121,81 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-#study-screen {
+#study-screen,
+#ask-screen {
   background: var(--bg-card);
   border-radius: 20px;
   padding: 32px;
   box-shadow: var(--shadow-lg);
+}
+
+.ask-hint {
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+.ask-input-wrap {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.ask-input-wrap .answer-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ask-results {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ask-result {
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+  border-left: 4px solid var(--accent);
+  padding: 16px 20px;
+  border-radius: 10px;
+  animation: fadeIn 0.3s ease;
+}
+
+.ask-result-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ask-result-score {
+  background: var(--accent);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+.ask-result-text {
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+.ask-result-text mark {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.ask-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 40px 20px;
 }
 
 .study-content {
